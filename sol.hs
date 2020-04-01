@@ -1,16 +1,19 @@
 import Control.Exception
+
+-- discs in rods A B C
 data Hanoi = Rods [Int] [Int] [Int]
   deriving (Show, Eq)
 
 data Move = AB | AC | BA | BC | CA | CB
   deriving (Show, Eq)
 
-a2, a3, a4 :: Hanoi
-a2 = Rods [1,2] [] []
-a3 = Rods [1,2,3] [] []
-a4 = Rods [1,2,3,4] [] []
+h2, h3, h4, h5 :: Hanoi
+h2 = Rods [1,2] [] []
+h3 = Rods [1,2,3] [] []
+h4 = Rods [1,2,3,4] [] []
+h5 = Rods [1,2,3,4,5] [] []
 
-
+-- check for invalid moves
 rodMove [] t = error "moving from empty rod"
 rodMove (f:ft) [] = (ft, [f])
 rodMove (f:ft) ts@(t:tt) = assert (f < t) (ft, f:ts)
@@ -22,25 +25,50 @@ move BC (Rods a b c) = let (nb, nc) = rodMove b c in Rods a nb nc
 move CA (Rods a b c) = let (nc, na) = rodMove c a in Rods na b nc
 move CB (Rods a b c) = let (nc, nb) = rodMove c b in Rods a nb nc
 
+stack AC moves (Rods [a] _ _) = AC:moves
+stack AB moves (Rods [a] _ _) = AB:moves
+stack BC moves (Rods _ [b] _) = BC:moves
+stack BA moves (Rods _ [b] _) = BA:moves
+stack CA moves (Rods _ _ [c]) = CA:moves
+stack CB moves (Rods _ _ [c]) = CB:moves
 
-sm moves AC (Rods [] b c) = (Rods [] b c, moves)
-sm moves AB (Rods [] b c) = (Rods [] b c, moves)
-sm moves BC (Rods a [] c) = (Rods a [] c, moves)
-sm moves BA (Rods a [] c) = (Rods a [] c, moves)
-sm moves CA (Rods a b []) = (Rods a b [], moves)
-sm moves CB (Rods a b []) = (Rods a b [], moves)
+stack AC moves (Rods (ha:ta) b c) =
+  let pmoves = stack AB moves (Rods ta [] [])
+  in stack BC (AC:pmoves) (Rods [] (ta++b) (ha:c))
 
-sm moves AC (Rods (ha:ta) b c) = let (Rods _ bb bc, bmoves) = sm moves AB (Rods ta [] []) in sm (AC:bmoves) BC (Rods [] (bb++b) (bc++ha:c))
+stack AB moves (Rods (ha:ta) b c) =
+  let pmoves = stack AC moves (Rods ta [] [])
+  in stack CB (AB:pmoves) (Rods [] (ha:b) (ta++c))
 
-sm moves AB (Rods (ha:ta) b c) = let (Rods _ bb bc, bmoves) = sm moves AC (Rods ta [] []) in sm (AB:bmoves) CB (Rods [] (bb++ha:b) (bc++c))
+stack BC moves (Rods a (hb:tb) c) =
+  let pmoves = stack BA moves (Rods [] tb [])
+  in stack AC (BC:pmoves) (Rods (tb++a) [] (hb:c))
 
-sm moves BC (Rods a (hb:tb) c) = let (Rods ba _ bc, bmoves) = sm moves BA (Rods [] tb []) in sm (BC:bmoves) AC (Rods (ba++a) [] (bc++hb:c))
+stack BA moves (Rods a (hb:tb) c) =
+  let pmoves = stack BC moves (Rods [] tb [])
+  in stack CA (BA:pmoves) (Rods (hb:a) [] (tb++c))
 
-sm moves BA (Rods a (hb:tb) c) = let (Rods ba _ bc, bmoves) = sm moves BC (Rods [] tb []) in sm (BA:bmoves) CA (Rods (ba++hb:a) [] (bc++c))
+stack CA moves (Rods a b (hc:tc)) =
+  let pmoves = stack CB moves (Rods [] [] tc)
+  in stack BA (CA:pmoves) (Rods (hc:a) (tc++b) [])
 
-sm moves CA (Rods a b (hc:tc)) = let (Rods ba bb _, bmoves) = sm moves CB (Rods [] [] tc) in sm (CA:bmoves) BA (Rods (ba++hc:a) (bb++b) [])
-
-sm moves CB (Rods a b (hc:tc)) = let (Rods ba bb _, bmoves) = sm moves CA (Rods [] [] tc) in sm (CB:bmoves) AB (Rods (ba++a) (bb++hc:b) [])
+stack CB moves (Rods a b (hc:tc)) =
+  let pmoves = stack CA moves (Rods [] [] tc)
+  in stack AB (CB:pmoves) (Rods (tc++a) (hc:b) [])
  
-getMoves = take 30 . snd . sm [] AC
-run = scanr move a4 . getMoves $ a4
+getMoves :: Hanoi -> [Move]
+getMoves = stack AC []
+
+makeMoves :: Hanoi -> [Move] -> [Hanoi]
+makeMoves hanoi = scanr move hanoi
+
+split :: (a -> b) -> (a -> c) -> a -> (b, c)
+split f g x = (f x, g x)
+
+apply :: (a -> b, a) -> b
+apply = uncurry ($)
+
+initialHanoiFromList l = Rods l [] []
+
+play = reverse . apply . split makeMoves getMoves
+playFromList = play . initialHanoiFromList
