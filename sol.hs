@@ -4,20 +4,18 @@ import Control.Exception
 data Hanoi = Rods [Int] [Int] [Int]
   deriving (Show, Eq)
 
+-- move from A to B, A to C, ...
 data Move = AB | AC | BA | BC | CA | CB
   deriving (Show, Eq)
 
-h2, h3, h4, h5 :: Hanoi
-h2 = Rods [1,2] [] []
-h3 = Rods [1,2,3] [] []
-h4 = Rods [1,2,3,4] [] []
-h5 = Rods [1,2,3,4,5] [] []
+getInitialHanoi n = Rods [1..n] [] []
 
 -- check for invalid moves
 rodMove [] t = error "moving from empty rod"
 rodMove (f:ft) [] = (ft, [f])
 rodMove (f:ft) ts@(t:tt) = assert (f < t) (ft, f:ts)
 
+-- make a move
 move AB (Rods a b c) = let (na, nb) = rodMove a b in Rods na nb c
 move AC (Rods a b c) = let (na, nc) = rodMove a c in Rods na b nc
 move BA (Rods a b c) = let (nb, na) = rodMove b a in Rods na nb c
@@ -25,6 +23,7 @@ move BC (Rods a b c) = let (nb, nc) = rodMove b c in Rods a nb nc
 move CA (Rods a b c) = let (nc, na) = rodMove c a in Rods na b nc
 move CB (Rods a b c) = let (nc, nb) = rodMove c b in Rods a nb nc
 
+-- move whole stack of discs
 stack AC moves (Rods [a] _ _) = AC:moves
 stack AB moves (Rods [a] _ _) = AB:moves
 stack BC moves (Rods _ [b] _) = BC:moves
@@ -68,7 +67,5 @@ split f g x = (f x, g x)
 apply :: (a -> b, a) -> b
 apply = uncurry ($)
 
-initialHanoiFromList l = Rods l [] []
-
 play = reverse . apply . split makeMoves getMoves
-playFromList = play . initialHanoiFromList
+playWith = play . getInitialHanoi
