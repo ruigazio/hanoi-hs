@@ -58,3 +58,5 @@ apply = uncurry ($)
 
 play = apply . split makeMoves getMoves
 playWith = play . getInitialHanoi
+
+main = print $ playWith 4
